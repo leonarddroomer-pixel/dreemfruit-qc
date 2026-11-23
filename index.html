@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#1f5f2e">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>dreemFRUIT QC</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin: 0; font-family: Arial, Helvetica, sans-serif; background: #eceae4; color: #111; user-select: none; -webkit-user-select: none; }
+  .bar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 10px; background: #1f5f2e; color: #fff; padding: 10px 14px; }
+  .bar .t { font-size: 20px; font-weight: bold; flex: 1; cursor: pointer; }
+  .bar .u { font-size: 15px; opacity: .9; cursor: pointer; }
+  .sync { border: 0; border-radius: 16px; padding: 7px 12px; font-size: 14px; font-weight: bold; cursor: pointer; background: #e5f2e7; color: #1f5f2e; }
+  .sync.wait { background: #ffe98a; color: #5a4500; }
+  .sync.err { background: #f8d7d3; color: #8a1c10; }
+  .view { display: none; }
+  .view.on { display: block; }
+  .paper { max-width: 1100px; margin: 10px auto; background: #fff; padding: 14px 16px 18px; box-shadow: 0 1px 4px rgba(0,0,0,.15); }
+  h1 { font-size: 22px; margin: 0 0 10px; text-align: center; }
+  h2 { font-size: 19px; margin: 14px 0 8px; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+  .tile { border: 0; border-radius: 12px; padding: 22px 16px; text-align: left; background: #f7f6f2; border: 2px solid #d8d5cc; cursor: pointer; min-height: 130px; }
+  .tile b { display: block; font-size: 21px; margin-bottom: 6px; color: #1f5f2e; }
+  .tile span { font-size: 15px; color: #444; }
+  .tile.off { opacity: .45; cursor: default; }
+  .note { font-size: 14px; color: #555; margin: 10px 0; }
+  .banner { border-radius: 8px; padding: 12px 14px; font-size: 17px; margin: 10px 0; }
+  .banner.red { background: #b3261e; color: #fff; font-weight: bold; }
+  .banner.green { background: #1e7b34; color: #fff; font-weight: bold; }
+  .banner.amber { background: #ffe98a; color: #3d2f00; }
+  .banner.grey { background: #f1f0ec; color: #333; }
+  .head { display: grid; grid-template-columns: 1fr 1fr auto; gap: 6px 14px; align-items: stretch; margin-bottom: 10px; }
+  .head2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; margin-bottom: 10px; }
+  .hf { display: flex; align-items: center; border: 1px solid #555; min-height: 52px; }
+  .hf b { padding: 0 10px; font-size: 16px; white-space: nowrap; }
+  .hf .v { flex: 1; height: 100%; display: flex; align-items: center; padding: 0 10px; font-size: 19px; border-left: 1px solid #555; cursor: pointer; }
+  .hf .v.empty { color: #b00; font-size: 15px; }
+  .hf .v.ro { cursor: default; color: #333; }
+  .tips { grid-row: span 2; display: flex; flex-direction: column; gap: 6px; }
+  .tip { min-width: 110px; flex: 1; border: 1px solid #555; background: #fff; font-size: 19px; font-weight: bold; cursor: pointer; }
+  .tip.on { background: #1f5f2e; color: #fff; }
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  th, td { border: 1px solid #555; text-align: center; }
+  th { background: #f1f0ec; font-size: 15px; padding: 8px 2px; }
+  td { height: 50px; font-size: 21px; cursor: pointer; }
+  td.nr { background: #f1f0ec; font-weight: bold; cursor: default; }
+  td.cm { font-size: 13px; text-align: left; padding: 2px 6px; overflow: hidden; }
+  td.act { background: #ffe98a; outline: 3px solid #e0a800; outline-offset: -3px; }
+  td.ap { color: #666; font-size: 16px; cursor: default; background: #fafaf8; }
+  td.yes { background: #b3261e; color: #fff; font-weight: bold; }
+  td.ok { background: #e5f2e7; color: #1e7b34; font-weight: bold; }
+  tr.avg td { background: #f1f0ec; font-weight: bold; font-size: 17px; cursor: default; height: 42px; }
+  .foot { display: flex; gap: 12px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
+  .msg { flex: 1; font-size: 16px; min-height: 22px; }
+  .msg.err { color: #b00; } .msg.ok { color: #1e7b34; font-weight: bold; }
+  .btn { border: 0; border-radius: 6px; font-size: 18px; padding: 14px 22px; cursor: pointer; font-weight: bold; }
+  .send { background: #1f5f2e; color: #fff; font-size: 22px; padding: 16px 34px; }
+  .send:disabled { background: #8aa592; }
+  .ghost { background: #e5e3dc; color: #222; }
+  .recent { margin-top: 14px; font-size: 14px; color: #444; }
+  .recent div { padding: 3px 0; border-top: 1px solid #eee; }
+  .big { font-size: 30px; font-weight: bold; }
+  .thumbs { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  .thumbs img { width: 110px; height: 110px; object-fit: cover; border-radius: 6px; border: 1px solid #aaa; }
+  textarea, input[type=text] { width: 100%; font-size: 18px; padding: 8px; border: 1px solid #999; border-radius: 6px; user-select: text; -webkit-user-select: text; }
+  textarea { height: 70px; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .list div { padding: 8px 0; border-top: 1px solid #eee; font-size: 15px; }
+  .pill { display: inline-block; border-radius: 10px; padding: 2px 8px; font-size: 13px; font-weight: bold; }
+  .pill.g { background: #e5f2e7; color: #1e7b34; } .pill.r { background: #f8d7d3; color: #8a1c10; } .pill.y { background: #ffe98a; color: #5a4500; }
+  /* pop-up */
+  #ov { position: fixed; inset: 0; background: rgba(0,0,0,.35); display: none; align-items: flex-end; justify-content: center; z-index: 9; }
+  #ov.show { display: flex; }
+  #pop { background: #fff; width: 100%; max-width: 1100px; border-radius: 14px 14px 0 0; padding: 12px 14px 16px; box-shadow: 0 -4px 18px rgba(0,0,0,.25); max-height: 82vh; overflow: auto; }
+  .ptop { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .ptitle { flex: 1; font-size: 19px; font-weight: bold; }
+  .pval { font-size: 26px; font-weight: bold; min-width: 90px; text-align: center; background: #ffe98a; border-radius: 6px; padding: 4px 10px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(66px, 1fr)); gap: 7px; }
+  .k { height: 60px; border: 1px solid #bbb; border-radius: 8px; background: #f7f6f2; font-size: 24px; font-weight: bold; cursor: pointer; }
+  .k:active { background: #ffe98a; }
+  .k.sel { background: #1f5f2e; color: #fff; border-color: #1f5f2e; }
+  .k.send { background: #1f5f2e; color: #fff; border-color: #1f5f2e; }
+  .k.wide { grid-column: span 2; }
+  .k.sm { font-size: 16px; }
+  .k.warn { border-color: #b3261e; }
+  .dec { display: flex; gap: 7px; align-items: center; margin-bottom: 10px; }
+  .dec span { font-size: 14px; color: #555; margin-right: 4px; }
+  .dec .k { width: 70px; height: 50px; font-size: 21px; }
+  .pbar { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .pbar .btn { flex: 1; }
+  .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; max-width: 420px; margin: 0 auto; }
+  .keypad .k { height: 66px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  .chips .k { height: 48px; font-size: 17px; padding: 0 14px; }
+  .sub { font-size: 12px; font-weight: normal; color: #555; display: block; }
+  .busy { opacity: .6; pointer-events: none; }
+  @media (max-width: 700px) { .head, .head2 { grid-template-columns: 1fr; } .tips { grid-row: auto; flex-direction: row; } td { font-size: 17px; } th { font-size: 12px; } }
+</style>
+</head>
+<body>
+<div class="bar">
+  <div class="t" onclick="go('home')">dreemFRUIT QC</div>
+  <div class="u" id="who" onclick="go('sign')"></div>
+  <button class="sync" id="syncBtn" onclick="go('out')">…</button>
+</div>
+
+<!-- HOME -->
+<div class="view" id="v-home"><div class="paper">
+  <div class="tiles">
+    <button class="tile" onclick="openPdi()"><b>PhytClean delivery inspection</b><span>FCM and fruit fly – first delivery of each orchard every week (P-4-5)</span></button>
+    <button class="tile" onclick="openMat()"><b>Maturity</b><span>Size, weight, pressure, Brix and taste – 10 fruit</span></button>
+    <button class="tile off"><b>Orchard fruit damage</b><span>FF and FCM assessment in the orchard – coming next</span></button>
+    <button class="tile off"><b>Label check</b><span>Photo of each label at the start of a run – coming later</span></button>
+  </div>
+  <div id="homeNote"></div>
+</div></div>
+
+<!-- SIGN IN -->
+<div class="view" id="v-sign"><div class="paper">
+  <h1>Who is using the tablet?</h1>
+  <div id="signBody"></div>
+</div></div>
+
+<!-- PDI -->
+<div class="view" id="v-pdi"><div class="paper" id="pdiPaper">
+  <h1>PhytClean Delivery Inspection – FCM and Fruit Fly</h1>
+  <div class="head2">
+    <div class="hf"><b>Date:</b><div class="v ro" id="pDate"></div></div>
+    <div class="hf"><b>QC:</b><div class="v ro" id="pQc"></div></div>
+    <div class="hf"><b>Orchard / block:</b><div class="v" id="pBlock" onclick="pdiPickBlock()"></div></div>
+    <div class="hf"><b>Cultivar:</b><div class="v ro" id="pCult"></div></div>
+    <div class="hf"><b>Avg fruit mass (g):</b><div class="v" id="pMass" onclick="pdiPickMass()"></div></div>
+    <div class="hf"><b>Lugs to check:</b><div class="v ro big" id="pLugs"></div></div>
+  </div>
+  <div id="pStatus"></div>
+  <p class="note">Mass from the <b>packing computer</b> for this block. Lugs = mass ÷ 30, rounded up, at least 4 (= about 600 fruit). Take the lugs from across the delivery. Look at every fruit – <b>cut only damaged fruit</b>.</p>
+  <table>
+    <colgroup><col style="width:12%"><col style="width:20%"><col style="width:22%"><col style="width:23%"><col style="width:23%"></colgroup>
+    <thead><tr><th>Lug</th><th>Checked</th><th>Damaged fruit cut</th><th>Live FCM larva</th><th>Live fruit fly larva / eggs</th></tr></thead>
+    <tbody id="pRows"></tbody>
+  </table>
+  <div id="pResult"></div>
+  <h2>Photos <span class="sub" style="display:inline">(of any find, or of damage)</span></h2>
+  <div class="row"><label class="btn ghost">📷 Add photo<input type="file" accept="image/*" capture="environment" style="display:none" onchange="pdiPhoto(this)"></label></div>
+  <div class="thumbs" id="pThumbs"></div>
+  <h2>Notes <span class="sub" style="display:inline">(OFM, codling moth or anything else)</span></h2>
+  <textarea id="pNotes" onchange="P.notes=this.value;pdiSave()"></textarea>
+  <div class="foot">
+    <button class="btn ghost" onclick="pdiNew(true)">Clear</button>
+    <div class="msg" id="pMsg"></div>
+    <button class="btn send" onclick="pdiFinish()">SAVE ►</button>
+  </div>
+  <div class="recent" id="pRecent"></div>
+</div></div>
+
+<!-- MATURITY -->
+<div class="view" id="v-mat"><div class="paper" id="paper">
+  <h1>Dreem Fruit – Maturity Assessment QC</h1>
+  <div class="head">
+    <div class="hf"><b>Date:</b><div class="v" id="hDate" onclick="pickDate()"></div></div>
+    <div class="hf"><b>Cultivar:</b><div class="v ro" id="hCult"></div></div>
+    <div class="tips">
+      <button class="tip" id="t8" onclick="setTip('8 mm')">8 mm</button>
+      <button class="tip" id="t11" onclick="setTip('11 mm')">11 mm</button>
+    </div>
+    <div class="hf"><b>Block:</b><div class="v" id="hBlock" onclick="pickBlock()"></div></div>
+    <div class="hf"><b>QC Name:</b><div class="v" id="hQc" onclick="pickQc()"></div></div>
+  </div>
+  <table>
+    <colgroup><col style="width:6%"><col style="width:9%"><col style="width:10%"><col style="width:9%"><col style="width:9%"><col style="width:9%"><col style="width:7%"><col style="width:9%"><col><col style="width:8%"></colgroup>
+    <thead><tr><th>Nr</th><th>MM</th><th>Weight</th><th>Right</th><th>Left</th><th>Bottom</th><th>Avg<span class="sub">pressure</span></th><th>Brix</th><th>Comments</th><th>Taste</th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+  <div class="foot">
+    <button class="btn ghost" onclick="newSheet()">New sheet</button>
+    <button class="btn ghost" onclick="lastSummary()">Last summary</button>
+    <div class="msg" id="msg"></div>
+    <button class="btn send" id="sendBtn" onclick="send()">SEND ►</button>
+  </div>
+  <div class="recent" id="recent"></div>
+</div></div>
+
+<!-- OUTBOX -->
+<div class="view" id="v-out"><div class="paper">
+  <h1>Sending</h1>
+  <div id="outTop"></div>
+  <div class="row"><button class="btn send" onclick="syncNow(true)">Send now</button><button class="btn ghost" onclick="refreshLists(true)">Update blocks and names</button><button class="btn ghost" onclick="go('set')">Settings</button></div>
+  <div class="list" id="outList"></div>
+</div></div>
+
+<!-- SETTINGS -->
+<div class="view" id="v-set"><div class="paper">
+  <h1>Settings</h1>
+  <p class="note">Sync address (the QCSync web app URL, ends in /exec). Normally set in config.js – only paste here to override on this tablet.</p>
+  <input type="text" id="setUrl" placeholder="https://script.google.com/macros/s/…/exec">
+  <div class="pbar"><button class="btn send" onclick="saveUrl()">Save</button><button class="btn ghost" onclick="go('out')">Back</button></div>
+  <p class="note" id="setInfo"></p>
+</div></div>
+
+<div id="ov" onclick="if(event.target===this)closePop()"><div id="pop"></div></div>
+
+<script src="config.js"></script>
+<script>
+/* =====================================================================
+   CORE – storage, lists, sign-in, sending
+   ===================================================================== */
+var CONF = window.DFQC_CONFIG || {};
+var APP = { lists: null, user: null, view: 'home', syncing: false };
+function el(id) { return document.getElementById(id); }
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+function lsGet(k, d) { try { var v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }
+function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+function syncUrl() { return lsGet('dfqcUrl', '') || CONF.syncUrl || ''; }
+function iso(d) { d = d || new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+function dmy(s) { var p = String(s || '').split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : ''; }
+function monday(isoDate) { var p = isoDate.split('-'), d = new Date(+p[0], +p[1] - 1, +p[2]); var w = (d.getDay() + 6) % 7; d.setDate(d.getDate() - w); return iso(d); }
+function uid(prefix) { return prefix + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+/* --- outbox in IndexedDB (photos can be big) --- */
+var DB = null;
+function db() {
+  return DB ? Promise.resolve(DB) : new Promise(function (ok, bad) {
+    var r = indexedDB.open('dfqc', 1);
+    r.onupgradeneeded = function () { r.result.createObjectStore('outbox', { keyPath: 'id' }); };
+    r.onsuccess = function () { DB = r.result; ok(DB); };
+    r.onerror = function () { bad(r.error); };
+  });
+}
+function tx(mode, fn) { return db().then(function (d) { return new Promise(function (ok, bad) { var t = d.transaction('outbox', mode), s = t.objectStore('outbox'), res = fn(s); t.oncomplete = function () { ok(res && res.result !== undefined ? res.result : res); }; t.onerror = function () { bad(t.error); }; }); }); }
+function outPut(item) { return tx('readwrite', function (s) { s.put(item); }); }
+function outAll() { return tx('readonly', function (s) { return s.getAll(); }); }
+function outDel(id) { return tx('readwrite', function (s) { s.delete(id); }); }
+
+/* --- talk to the Google sheet --- */
+function post(body) {
+  var url = syncUrl();
+  if (!url) return Promise.reject(new Error('No sync address yet (config.js).'));
+  return fetch(url, { method: 'POST', body: JSON.stringify(body) }).then(function (r) { return r.json(); });
+}
+function refreshLists(loud) {
+  if (!navigator.onLine || !syncUrl()) { if (loud) toastOut('No signal – try again later.'); return Promise.resolve(); }
+  return post({ action: 'lists' }).then(function (d) {
+    if (!d || !d.ok) throw new Error(d && d.error || 'no answer');
+    APP.lists = { blocks: d.blocks || [], staff: d.staff || [], pdi: d.pdi || [], matRecent: d.matRecent || [], at: new Date().toISOString() };
+    lsSet('dfqcLists', APP.lists);
+    if (loud) toastOut('Blocks and names updated ✓');
+    redraw();
+  }).catch(function (e) { if (loud) toastOut('Could not update – ' + e.message); });
+}
+function toastOut(t) { var e = el('outTop'); if (e) e.innerHTML = '<div class="banner grey">' + esc(t) + '</div>'; }
+
+function badge() {
+  return outAll().then(function (all) {
+    var wait = all.filter(function (i) { return i.status !== 'sent'; });
+    var err = wait.filter(function (i) { return i.status === 'error'; });
+    var b = el('syncBtn');
+    if (err.length) { b.className = 'sync err'; b.textContent = '⚠ ' + wait.length + ' not sent'; }
+    else if (wait.length) { b.className = 'sync wait'; b.textContent = '⏳ ' + wait.length + ' waiting'; }
+    else { b.className = 'sync'; b.textContent = navigator.onLine ? '✓ All sent' : '✓ All sent · offline'; }
+    return all;
+  });
+}
+function syncNow(loud) {
+  if (APP.syncing) return Promise.resolve();
+  if (!navigator.onLine) { if (loud) toastOut('No signal – everything stays on the tablet and goes when there is signal.'); return badge(); }
+  if (!syncUrl()) { if (loud) toastOut('The sync address is not set yet (config.js).'); return badge(); }
+  if (!APP.user) { if (loud) toastOut('Sign in first.'); return badge(); }
+  APP.syncing = true;
+  return outAll().then(function (all) {
+    var todo = all.filter(function (i) { return i.status !== 'sent'; }).sort(function (a, b) { return a.saved < b.saved ? -1 : 1; });
+    var chain = Promise.resolve();
+    todo.forEach(function (it) {
+      chain = chain.then(function () {
+        return post({ action: 'sync', name: APP.user.name, pin: APP.user.pin, items: [{ id: it.id, type: it.type, data: it.data }] }).then(function (r) {
+          if (r && r.error === 'PIN') { it.status = 'error'; it.error = 'Name or PIN not accepted – sign in again.'; return outPut(it); }
+          var x = r && r.results && r.results[0];
+          if (x && x.ok) { it.status = 'sent'; it.sentAt = new Date().toISOString(); it.error = ''; it.reply = x.message || ''; if (it.data && it.data.photos) it.data.photos = it.data.photos.map(function () { return 'sent'; }); }
+          else { it.status = 'error'; it.error = (x && x.error) || (r && r.error) || 'No answer'; }
+          return outPut(it);
+        }).catch(function (e) { it.status = 'error'; it.error = 'Could not reach the sheet – ' + e.message; return outPut(it); });
+      });
+    });
+    return chain;
+  }).then(function () {
+    // keep sent items 14 days for the list, then remove
+    return outAll().then(function (all) {
+      var old = Date.now() - 14 * 864e5;
+      return Promise.all(all.filter(function (i) { return i.status === 'sent' && Date.parse(i.sentAt) < old; }).map(function (i) { return outDel(i.id); }));
+    });
+  }).then(function () { return refreshLists(false); }).then(function () {
+    APP.syncing = false; if (loud) toastOut('Done.'); return badge().then(drawOut);
+  }).catch(function (e) { APP.syncing = false; if (loud) toastOut('Problem: ' + e.message); return badge(); });
+}
+function queue(type, data, label) {
+  var it = { id: data.id, type: type, data: data, label: label, saved: new Date().toISOString(), status: 'waiting', error: '' };
+  return outPut(it).then(badge).then(function () { syncNow(false); });
+}
+function drawOut() {
+  return outAll().then(function (all) {
+    all.sort(function (a, b) { return a.saved < b.saved ? 1 : -1; });
+    el('outList').innerHTML = all.length ? all.map(function (i) {
+      var p = i.status === 'sent' ? '<span class="pill g">sent</span>' : i.status === 'error' ? '<span class="pill r">not sent</span>' : '<span class="pill y">waiting</span>';
+      return '<div>' + p + ' <b>' + esc(i.label) + '</b> · saved ' + esc(i.saved.slice(0, 16).replace('T', ' ')) + (i.error ? '<br><span style="color:#b00">' + esc(i.error) + '</span>' : '') + (i.reply ? '<br><span style="color:#1e7b34">' + esc(i.reply) + '</span>' : '') + '</div>';
+    }).join('') : '<div>Nothing saved yet.</div>';
+    if (!el('outTop').innerHTML) toastOut(navigator.onLine ? 'Signal ✓' : 'No signal – records wait on the tablet.');
+  });
+}
+
+/* --- views --- */
+function go(v) {
+  APP.view = v;
+  ['home', 'sign', 'pdi', 'mat', 'out', 'set'].forEach(function (x) { el('v-' + x).className = 'view' + (x === v ? ' on' : ''); });
+  if (v === 'sign') drawSign();
+  if (v === 'out') { el('outTop').innerHTML = ''; drawOut(); }
+  if (v === 'set') { el('setUrl').value = lsGet('dfqcUrl', ''); el('setInfo').textContent = 'Now using: ' + (syncUrl() || '(none)'); }
+  window.scrollTo(0, 0);
+}
+function saveUrl() { lsSet('dfqcUrl', el('setUrl').value.trim()); go('out'); refreshLists(true); }
+function redraw() {
+  el('who').textContent = APP.user ? '👤 ' + APP.user.name : 'Sign in';
+  var n = el('homeNote');
+  if (!APP.lists) n.innerHTML = '<div class="banner amber">Open the app once with signal so it can load the blocks and QC names.</div>';
+  else n.innerHTML = '<p class="note">Blocks and names loaded ' + esc(APP.lists.at.slice(0, 16).replace('T', ' ')) + '. Everything you save stays on this tablet until it has been sent.</p>';
+  if (APP.view === 'pdi') pdiDraw();
+}
+
+/* --- sign-in: name + PIN (PIN checked by the sheet when there is signal) --- */
+var PIN = '';
+function drawSign() {
+  var L = APP.lists;
+  if (!L || !L.staff.length) { el('signBody').innerHTML = '<div class="banner amber">The names are not loaded yet. Connect to signal and tap “Update blocks and names”.</div><div class="pbar"><button class="btn ghost" onclick="refreshLists(true).then(drawSign)">Update now</button></div>'; return; }
+  el('signBody').innerHTML = '<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(170px,1fr))">' +
+    L.staff.map(function (s, i) { return '<button class="k sm' + (APP.user && APP.user.name === s ? ' sel' : '') + '" style="font-size:20px;height:70px" onclick="signPin(' + i + ')">' + esc(s) + '</button>'; }).join('') + '</div>' +
+    (APP.user ? '<div class="pbar"><button class="btn ghost" onclick="APP.user=null;lsSet(\'dfqcUser\',null);redraw();drawSign()">Sign out</button></div>' : '');
+}
+function signPin(i) {
+  PIN = ''; var name = APP.lists.staff[i];
+  function draw() {
+    el('pop').innerHTML = '<div class="ptop"><div class="ptitle">' + esc(name) + ' – your PIN</div></div><div class="pval" style="margin:0 auto 10px;max-width:420px;letter-spacing:8px">' + (PIN.replace(/./g, '●') || '&nbsp;') + '</div><div class="keypad">' +
+      ['1', '2', '3', '4', '5', '6', '7', '8', '9', '⌫', '0', 'OK'].map(function (x) { return '<button class="k' + (x === 'OK' ? ' send' : '') + '" onclick="pinKey(\'' + x + '\')">' + x + '</button>'; }).join('') + '</div><p class="note" id="pinMsg"></p>';
+  }
+  window.pinKey = function (x) {
+    if (x === '⌫') PIN = PIN.slice(0, -1);
+    else if (x === 'OK') {
+      if (PIN.length < 4) return;
+      var u = { name: name, pin: PIN };
+      if (navigator.onLine && syncUrl()) {
+        el('pinMsg').textContent = 'Checking…';
+        post({ action: 'check', name: name, pin: PIN }).then(function (r) {
+          if (r && r.ok) { setUser(u); } else { PIN = ''; draw(); el('pinMsg').textContent = 'Wrong PIN – try again.'; }
+        }).catch(function () { setUser(u); });
+      } else setUser(u);
+      return;
+    } else if (PIN.length < 8) PIN += x;
+    draw();
+  };
+  draw(); el('ov').className = 'show';
+}
+function setUser(u) { APP.user = u; lsSet('dfqcUser', u); closePop(); redraw(); go('home'); syncNow(false); }
+function needUser() { if (APP.user) return true; go('sign'); return false; }
+
+/* --- shared pop-up --- */
+function popShow(html) { el('pop').innerHTML = html; el('ov').className = 'show'; }
+function closePop() { el('ov').className = ''; document.body.style.paddingBottom = ''; if (APP.view === 'mat') { cur = null; draw(); } }
+
+/* =====================================================================
+   PhytClean PACKHOUSE DELIVERY INSPECTION (P-4-5)
+   ===================================================================== */
+var P = null;
+function lugsFor(mass) { return mass ? Math.max(4, Math.ceil(mass / 30)) : 0; }
+function pdiBlank() { return { id: uid('PDI'), date: iso(), block: '', cult: '', mass: '', lugs: [], notes: '', photos: [] }; }
+function pdiSave() { lsSet('dfqcPdiDraft', P); }
+function openPdi() { if (!needUser()) return; if (!P) P = lsGet('dfqcPdiDraft', null) || pdiBlank(); go('pdi'); pdiDraw(); }
+function pdiNew(ask) {
+  if (ask && (P.block || P.mass) && !confirm('Clear this inspection? It has not been saved.')) return;
+  P = pdiBlank(); pdiSave(); pdiDraw(); el('pMsg').textContent = '';
+}
+function pdiFitLugs() {
+  var n = lugsFor(Number(P.mass));
+  while (P.lugs.length < n) P.lugs.push({ done: false, cut: '', fcm: false, ff: false });
+  if (P.lugs.length > n) P.lugs = P.lugs.slice(0, n).concat(P.lugs.slice(n).filter(function (l) { return l.done; }));
+}
+/* this week's status of a block, from the sheet plus what is still on the tablet */
+function pdiState(block) {
+  var wk = monday(iso()), L = APP.lists || { pdi: [] }, local = lsGet('dfqcPdiLocal', []);
+  var all = (L.pdi || []).concat(local);
+  var mine = all.filter(function (r) { return r.block === block; });
+  return {
+    withdrawn: mine.some(function (r) { return /withdrawn/i.test(r.result); }),
+    thisWeek: mine.filter(function (r) { return r.week === wk; })[0] || null
+  };
+}
+function pdiDraw() {
+  if (!P) return;
+  el('pDate').textContent = dmy(P.date);
+  el('pQc').textContent = APP.user ? APP.user.name : '';
+  var b = el('pBlock'); b.textContent = P.block || 'tap to pick'; b.className = 'v' + (P.block ? '' : ' empty');
+  el('pCult').textContent = P.cult || '';
+  var m = el('pMass'); m.textContent = P.mass ? P.mass + ' g' : 'tap to fill in'; m.className = 'v' + (P.mass ? '' : ' empty');
+  el('pLugs').textContent = P.mass ? lugsFor(Number(P.mass)) : '–';
+  var st = P.block ? pdiState(P.block) : null, s = '';
+  if (st && st.withdrawn) s += '<div class="banner red">This orchard is WITHDRAWN for the EU for the rest of the season (live FCM or fruit fly found). Do not pack it for the EU.</div>';
+  else if (st && st.thisWeek) s += '<div class="banner amber">Already inspected this week (' + esc(dmy(st.thisWeek.date)) + ' – ' + esc(st.thisWeek.result) + '). A new PDI is only needed from Monday – unless damaged fruit is seen.</div>';
+  el('pStatus').innerHTML = s;
+  var h = '';
+  P.lugs.forEach(function (l, i) {
+    h += '<tr><td class="nr">' + (i + 1) + '</td>' +
+      '<td class="' + (l.done ? 'ok' : '') + '" onclick="pdiTog(' + i + ',\'done\')">' + (l.done ? '✓ checked' : 'tap when checked') + '</td>' +
+      '<td onclick="pdiCut(' + i + ')">' + (l.cut === '' ? '<span style="color:#999;font-size:15px">tap</span>' : l.cut) + '</td>' +
+      '<td class="' + (l.fcm ? 'yes' : '') + '" onclick="pdiTog(' + i + ',\'fcm\')">' + (l.fcm ? 'YES – LIVE FCM' : 'No') + '</td>' +
+      '<td class="' + (l.ff ? 'yes' : '') + '" onclick="pdiTog(' + i + ',\'ff\')">' + (l.ff ? 'YES – LIVE FF' : 'No') + '</td></tr>';
+  });
+  if (!P.lugs.length) h = '<tr><td colspan="5" style="font-size:16px;color:#666;cursor:default">Fill in the average fruit mass first.</td></tr>';
+  el('pRows').innerHTML = h;
+  var r = pdiResult(), done = P.lugs.filter(function (l) { return l.done; }).length;
+  el('pResult').innerHTML = r.found ?
+    '<div class="banner red">LIVE ' + r.what + ' FOUND → delivery REJECTED for the EU and the orchard is WITHDRAWN for the EU for the rest of the season. Stop packing this orchard for the EU and tell Leonard now. Take a photo.</div>' :
+    (P.lugs.length && done === P.lugs.length ? '<div class="banner green">All ' + done + ' lugs checked – no live FCM or fruit fly. PASS for this week.</div>' :
+      (P.lugs.length ? '<div class="banner grey">' + done + ' of ' + P.lugs.length + ' lugs checked.</div>' : ''));
+  el('pThumbs').innerHTML = P.photos.map(function (p, i) { return '<img src="' + p + '" onclick="pdiDelPhoto(' + i + ')" title="tap to remove">'; }).join('');
+  el('pNotes').value = P.notes || '';
+  pdiRecent();
+  pdiSave();
+}
+function pdiResult() {
+  var fcm = P.lugs.some(function (l) { return l.fcm; }), ff = P.lugs.some(function (l) { return l.ff; });
+  return { fcm: fcm, ff: ff, found: fcm || ff, what: fcm && ff ? 'FCM AND FRUIT FLY' : fcm ? 'FCM' : 'FRUIT FLY' };
+}
+function pdiTog(i, k) {
+  var l = P.lugs[i];
+  if ((k === 'fcm' || k === 'ff') && !l[k] && !confirm('Mark a LIVE ' + (k === 'fcm' ? 'FCM larva' : 'fruit fly larva / eggs') + ' in lug ' + (i + 1) + '?\nThis withdraws the orchard for the EU for the season.')) return;
+  l[k] = !l[k]; if (k !== 'done') l.done = true; pdiDraw();
+}
+function pdiCut(i) {
+  var b = '<div class="ptop"><div class="ptitle">Lug ' + (i + 1) + ' – damaged fruit cut</div></div><div class="grid">';
+  for (var n = 0; n <= 30; n++) b += '<button class="k" onclick="P.lugs[' + i + '].cut=' + n + ';P.lugs[' + i + '].done=true;closePop();pdiDraw()">' + n + '</button>';
+  b += '<button class="k wide sm" onclick="pdiCutOther(' + i + ')">More…</button></div><div class="pbar"><button class="btn ghost" onclick="closePop()">Close</button></div>';
+  popShow(b);
+}
+function pdiCutOther(i) { var v = prompt('Damaged fruit cut in lug ' + (i + 1) + ':'); if (v !== null && v !== '' && !isNaN(+v)) { P.lugs[i].cut = Math.round(+v); P.lugs[i].done = true; } closePop(); pdiDraw(); }
+function pdiPickBlock() {
+  var L = APP.lists; if (!L) return alert('Blocks not loaded yet – connect once to signal.');
+  popShow('<div class="ptop"><div class="ptitle">Orchard / block</div></div><div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(130px,1fr))">' +
+    L.blocks.map(function (b, i) {
+      var st = pdiState(b.block), tag = st.withdrawn ? '<span class="sub" style="color:#b3261e;font-weight:bold">EU withdrawn</span>' : st.thisWeek ? '<span class="sub" style="color:#1e7b34">done this week</span>' : '';
+      return '<button class="k sm' + (P.block === b.block ? ' sel' : '') + (st.withdrawn ? ' warn' : '') + '" style="height:74px" onclick="pdiSetBlock(' + i + ')"><b style="font-size:20px">' + esc(b.block) + '</b><span class="sub" style="color:inherit">' + esc(b.cult) + '</span>' + tag + '</button>';
+    }).join('') + '</div><div class="pbar"><button class="btn ghost" onclick="closePop()">Close</button></div>');
+}
+function pdiSetBlock(i) { var b = APP.lists.blocks[i]; P.block = b.block; P.cult = b.cult; closePop(); pdiDraw(); }
+var PAD = '';
+function pdiPickMass() {
+  PAD = P.mass ? String(P.mass) : '';
+  function draw() {
+    var n = Number(PAD);
+    el('pop').innerHTML = '<div class="ptop"><div class="ptitle">Average fruit mass from the packing computer (g)</div></div>' +
+      '<div class="pval" style="margin:0 auto 6px;max-width:420px">' + (PAD || '&nbsp;') + '</div><p class="note" style="text-align:center">' + (n ? '→ check <b>' + lugsFor(n) + ' lugs</b>' : '') + '</p><div class="keypad">' +
+      ['7', '8', '9', '4', '5', '6', '1', '2', '3', '⌫', '0', 'OK'].map(function (x) { return '<button class="k' + (x === 'OK' ? ' send' : '') + '" onclick="massKey(\'' + x + '\')">' + x + '</button>'; }).join('') + '</div>' +
+      '<div class="pbar"><button class="btn ghost" onclick="closePop()">Close</button></div>';
+  }
+  window.massKey = function (x) {
+    if (x === '⌫') PAD = PAD.slice(0, -1);
+    else if (x === 'OK') { var n = Number(PAD); if (!n || n < 40 || n > 600) { alert('Type the average fruit mass in grams (for example 165).'); return; } P.mass = n; pdiFitLugs(); closePop(); pdiDraw(); return; }
+    else if (PAD.length < 3) PAD += x;
+    draw();
+  };
+  draw(); el('ov').className = 'show';
+}
+function pdiPhoto(inp) {
+  var f = inp.files && inp.files[0]; inp.value = ''; if (!f) return;
+  var img = new Image(), url = URL.createObjectURL(f);
+  img.onload = function () {
+    var s = Math.min(1, 1280 / Math.max(img.width, img.height)), c = document.createElement('canvas');
+    c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+    P.photos.push(c.toDataURL('image/jpeg', 0.72)); pdiDraw();
+  };
+  img.src = url;
+}
+function pdiDelPhoto(i) { if (confirm('Remove this photo?')) { P.photos.splice(i, 1); pdiDraw(); } }
+function pdiFinish() {
+  var m = el('pMsg'); m.className = 'msg err';
+  if (!P.block) return m.textContent = 'Pick the orchard / block.';
+  if (!P.mass) return m.textContent = 'Fill in the average fruit mass.';
+  var r = pdiResult(), done = P.lugs.filter(function (l) { return l.done; }).length;
+  if (!r.found && done < P.lugs.length) return m.textContent = 'Check all ' + P.lugs.length + ' lugs first (' + done + ' done).';
+  if (r.found && !P.photos.length && !confirm('No photo of the find yet. Save without a photo?')) return;
+  var st = pdiState(P.block);
+  if (!r.found && st.thisWeek && !confirm('This orchard was already inspected this week. Save another inspection?')) return;
+  var cut = P.lugs.reduce(function (s, l) { return s + (Number(l.cut) || 0); }, 0);
+  var result = r.found ? 'REJECTED – EU withdrawn' : 'Pass';
+  var data = { id: P.id, date: P.date, week: monday(P.date), block: P.block, cult: P.cult, mass: P.mass, lugsNeeded: lugsFor(Number(P.mass)), lugsChecked: done,
+    cut: cut, fcm: r.fcm ? 'Yes' : 'No', ff: r.ff ? 'Yes' : 'No', result: result, qc: APP.user.name, notes: P.notes || '',
+    lugs: P.lugs, photos: P.photos, savedAt: new Date().toISOString() };
+  var local = lsGet('dfqcPdiLocal', []); local.push({ id: data.id, block: data.block, week: data.week, date: data.date, result: result, cult: data.cult, lugs: done, cut: cut }); lsSet('dfqcPdiLocal', local.slice(-60));
+  queue('pdi', data, 'PDI ' + data.block + ' – ' + result + ' – ' + dmy(data.date)).then(function () {
+    var ph = r.found ? '<b>FMS (FCM):</b> ' + (r.fcm ? 'LIVE FCM FOUND' : 'No live FCM') + '<br><b>FFMS (fruit fly):</b> ' + (r.ff ? 'INFESTED FRUIT FOUND' : 'No infested fruit') :
+      '<b>FMS (FCM):</b> No live FCM<br><b>FFMS (fruit fly):</b> No infested fruit';
+    popShow('<div class="banner ' + (r.found ? 'red' : 'green') + '">' + esc(data.block) + ' ' + esc(data.cult) + ' – ' + esc(result) + '</div>' +
+      '<p style="font-size:18px">Enter on <b>PhytClean</b> for this orchard today:<br>' + ph + '</p>' +
+      (r.found ? '<p style="font-size:17px">Stop packing this orchard for the EU. Hold EU fruit already packed from it (P-4-7). Tell Leonard now.</p>' : '') +
+      '<p class="note">Saved on the tablet' + (navigator.onLine ? ' – sending now.' : ' – it goes to the sheet when there is signal.') + '</p>' +
+      '<div class="pbar"><button class="btn send" onclick="closePop();pdiNew(false);go(\'home\')">Done</button></div>');
+  });
+}
+function pdiRecent() {
+  var wk = monday(iso()), L = APP.lists || { pdi: [] }, local = lsGet('dfqcPdiLocal', []);
+  var seen = {}, rows = local.concat(L.pdi || []).filter(function (r) { if (seen[r.id]) return false; seen[r.id] = 1; return r.week === wk; });
+  el('pRecent').innerHTML = rows.length ? '<b>Inspected this week</b>' + rows.map(function (r) { return '<div>' + esc(dmy(r.date)) + ' · <b>' + esc(r.block) + '</b> ' + esc(r.cult || '') + ' · ' + esc(r.result) + '</div>'; }).join('') : '';
+}
+
+/* =====================================================================
+   MATURITY (same sheet as before – tap-to-fill)
+   ===================================================================== */
+var COLS = ['mm', 'wt', 'pr', 'pl', 'pb', 'brix', 'cm', 'taste'];
+var NAMES = { mm: 'MM (diameter)', wt: 'Weight (g)', pr: 'Pressure right', pl: 'Pressure left', pb: 'Pressure bottom', brix: 'Brix', cm: 'Comments', taste: 'Taste' };
+var PICK = { mm: { type: 'whole', from: 40, to: 80 }, wt: { type: 'pad' }, pr: { type: 'dec', from: 2, to: 16 }, pl: { type: 'dec', from: 2, to: 16 }, pb: { type: 'dec', from: 2, to: 16 }, brix: { type: 'dec', from: 6, to: 22 }, taste: { type: 'taste' }, cm: { type: 'text' } };
+var CHIPS = ['Sunburn', 'Bruise', 'Wind marks', 'Split stone', 'Soft', 'Green', 'Over ripe', 'Hail', 'Insect damage', 'Russet'];
+var L = { blocks: [], staff: [] };
+var S, cur = null, dec = 0, pad = '';
+function openMat() {
+  if (!needUser()) return;
+  L = APP.lists || { blocks: [], staff: [] };
+  if (!S) { S = load() || blank(); }
+  if (!S.qc) S.qc = APP.user.name;
+  go('mat'); draw(); recentMat();
+}
+function blank() {
+  var f = []; for (var i = 1; i <= 10; i++) f.push({ nr: i, mm: '', wt: '', pr: '', pl: '', pb: '', brix: '', cm: '', taste: '' });
+  return { id: 'T' + Date.now().toString(36), date: iso(), block: '', cult: '', qc: APP.user ? APP.user.name : '', tip: '', fruit: f };
+}
+function save() { try { localStorage.setItem('qcDraft', JSON.stringify(S)); } catch (e) {} }
+function load() { try { var s = JSON.parse(localStorage.getItem('qcDraft') || 'null'); if (s && s.fruit) return s; } catch (e) {} return null; }
+function n(v) { return v === '' || v == null ? null : Number(v); }
+function fmt1(v) { return (Math.round(v * 10) / 10).toFixed(1); }
+function show(v, c) { if (v === '' || v == null) return ''; return (c === 'pr' || c === 'pl' || c === 'pb' || c === 'brix') ? fmt1(v) : String(v); }
+function dateTxt(s) { return dmy(s); }
+function draw() {
+  el('hDate').textContent = dateTxt(S.date) || 'tap to pick';
+  setHead('hBlock', S.block, 'tap to pick the block');
+  el('hCult').textContent = S.cult || '';
+  setHead('hQc', S.qc, 'tap to pick your name');
+  el('t8').className = 'tip' + (S.tip === '8 mm' ? ' on' : '');
+  el('t11').className = 'tip' + (S.tip === '11 mm' ? ' on' : '');
+  var h = '';
+  S.fruit.forEach(function (f, r) {
+    var ap = apOf(f); ap = ap == null ? '' : fmt1(ap);
+    h += '<tr><td class="nr">' + f.nr + '</td>';
+    ['mm', 'wt', 'pr', 'pl', 'pb'].forEach(function (c) { h += cell(r, c, show(f[c], c)); });
+    h += '<td class="ap">' + ap + '</td>' + cell(r, 'brix', show(f.brix, 'brix')) + cell(r, 'cm', esc(f.cm), 'cm') + cell(r, 'taste', f.taste) + '</tr>';
+  });
+  el('rows').innerHTML = h + avgRow();
+  save();
+}
+function apOf(f) { var p = [n(f.pr), n(f.pl), n(f.pb)].filter(function (x) { return x != null; }); return p.length ? p.reduce(function (s, x) { return s + x; }, 0) / p.length : null; }
+function setHead(id, v, ph) { var e = el(id); e.textContent = v || ph; e.className = 'v' + (v ? '' : ' empty'); }
+function cell(r, c, txt, cls) { var a = cur && cur.r === r && cur.c === c; return '<td class="' + (cls || '') + (a ? ' act' : '') + '" onclick="openCell(' + r + ',\'' + c + '\')">' + txt + '</td>'; }
+function avgRow() {
+  function av(k) { var v = S.fruit.map(function (f) { return n(f[k]); }).filter(function (x) { return x != null; }); return v.length ? v.reduce(function (s, x) { return s + x; }, 0) / v.length : null; }
+  function ap() { var v = S.fruit.map(apOf).filter(function (x) { return x != null; }); return v.length ? v.reduce(function (s, x) { return s + x; }, 0) / v.length : null; }
+  function t(v, d) { return v == null ? '' : (d ? fmt1(v) : String(Math.round(v * 10) / 10)); }
+  var ta = { E: 0, G: 0, B: 0 }; S.fruit.forEach(function (f) { if (ta[f.taste] != null) ta[f.taste]++; });
+  return '<tr class="avg"><td>Avg</td><td>' + t(av('mm')) + '</td><td>' + t(av('wt')) + '</td><td>' + t(av('pr'), 1) + '</td><td>' + t(av('pl'), 1) + '</td><td>' + t(av('pb'), 1) +
+    '</td><td>' + t(ap(), 1) + '</td><td>' + t(av('brix'), 1) + '</td><td style="font-weight:normal;font-size:14px">E ' + ta.E + ' · G ' + ta.G + ' · B ' + ta.B + '</td><td></td></tr>';
+}
+function openCell(r, c) { cur = { r: r, c: c }; dec = 0; pad = ''; draw(); popCell(); }
+function matPop(html) {
+  popShow(html); document.body.style.paddingBottom = '70vh';
+  var a = document.querySelector('td.act'); if (a) { var y = a.getBoundingClientRect().top + window.pageYOffset - 70; window.scrollTo(0, Math.max(0, y)); }
+}
+function popCell() {
+  var f = S.fruit[cur.r], c = cur.c, Pk = PICK[c], v = f[c];
+  var top = '<div class="ptop"><div class="ptitle">Fruit ' + f.nr + ' · ' + NAMES[c] + '</div><div class="pval" id="pv">' + (show(v, c) || '–') + '</div></div>', body = '';
+  if (Pk.type === 'whole' || Pk.type === 'dec') {
+    if (Pk.type === 'dec') { body += '<div class="dec"><span>Decimal – tap first if needed:</span>'; [0, 2, 4, 6, 8].forEach(function (d) { body += '<button class="k' + (dec === d ? ' sel' : '') + '" onclick="setDec(' + d + ')">.' + d + '</button>'; }); body += '</div>'; }
+    body += '<div class="grid">';
+    for (var i = Pk.from; i <= Pk.to; i++) body += '<button class="k" onclick="pickNum(' + i + ')">' + i + (Pk.type === 'dec' && dec ? '<span style="font-size:15px">.' + dec + '</span>' : '') + '</button>';
+    body += '<button class="k wide sm" onclick="usePad()">Other…</button></div>';
+  } else if (Pk.type === 'pad') { pad = v === '' ? '' : String(v); body += padHtml(); }
+  else if (Pk.type === 'taste') {
+    body += '<div class="grid" style="grid-template-columns:repeat(3,1fr)">' + [['E', 'Excellent'], ['G', 'Good'], ['B', 'Bad']].map(function (t) {
+      return '<button class="k' + (v === t[0] ? ' sel' : '') + '" style="height:84px" onclick="pickVal(\'' + t[0] + '\')">' + t[0] + '<span class="sub" style="color:inherit">' + t[1] + '</span></button>'; }).join('') + '</div>';
+  } else if (Pk.type === 'text') {
+    body += '<div class="chips">' + CHIPS.map(function (t) { return '<button class="k" onclick="addChip(\'' + t + '\')">' + t + '</button>'; }).join('') + '</div><textarea id="cmt" placeholder="Type a comment">' + esc(v) + '</textarea>';
+  }
+  var bar = '<div class="pbar"><button class="btn ghost" onclick="move(-1)">◀ Back</button><button class="btn ghost" onclick="clearCell()">Clear</button>' +
+    (Pk.type === 'text' ? '<button class="btn send" onclick="saveText()">OK</button>' : '<button class="btn ghost" onclick="move(1)">Next ▶</button>') + '<button class="btn ghost" onclick="closePop()">Close</button></div>';
+  matPop(top + body + bar);
+}
+function padHtml() {
+  var k = ['7', '8', '9', '4', '5', '6', '1', '2', '3', '.', '0', '⌫'];
+  return '<div class="pval" id="padv" style="margin:0 auto 10px;max-width:420px">' + (pad || '&nbsp;') + '</div><div class="keypad">' + k.map(function (x) { return '<button class="k" onclick="padKey(\'' + x + '\')">' + x + '</button>'; }).join('') +
+    '<button class="k send" style="grid-column:span 3;color:#fff" onclick="padOk()">OK ▶</button></div>';
+}
+function usePad() { pad = ''; var f = S.fruit[cur.r]; el('pop').innerHTML = '<div class="ptop"><div class="ptitle">Fruit ' + f.nr + ' · ' + NAMES[cur.c] + '</div></div>' + padHtml() + '<div class="pbar"><button class="btn ghost" onclick="popCell()">◀ Numbers</button><button class="btn ghost" onclick="closePop()">Close</button></div>'; }
+function padKey(x) { if (x === '⌫') pad = pad.slice(0, -1); else if (x === '.') { if (pad.indexOf('.') < 0) pad = (pad || '0') + '.'; } else if (pad.length < 6) pad += x; el('padv').innerHTML = pad || '&nbsp;'; }
+function padOk() { if (pad === '' || isNaN(Number(pad))) return; pickVal(Number(pad)); }
+function setDec(d) { dec = d; popCell(); }
+function pickNum(i) { var Pk = PICK[cur.c]; pickVal(Pk.type === 'dec' ? Math.round((i + dec / 10) * 10) / 10 : i); }
+function pickVal(v) { S.fruit[cur.r][cur.c] = v; move(1); }
+function clearCell() { S.fruit[cur.r][cur.c] = ''; draw(); popCell(); }
+function addChip(t) { var e = el('cmt'); e.value = e.value ? e.value.replace(/\s+$/, '') + ', ' + t : t; }
+function saveText() { S.fruit[cur.r].cm = el('cmt').value.trim(); closePop(); }
+function seq() {
+  var q = [], m = S.fruit.length, r;
+  for (r = 0; r < m; r++) q.push([r, 'mm']);
+  for (r = 0; r < m; r++) q.push([r, 'wt']);
+  for (r = 0; r < m; r++) { q.push([r, 'pr']); q.push([r, 'pl']); q.push([r, 'pb']); }
+  for (r = 0; r < m; r++) q.push([r, 'brix']);
+  for (r = 0; r < m; r++) q.push([r, 'taste']);
+  return q;
+}
+function move(step) {
+  var q = seq(), i = -1;
+  for (var k = 0; k < q.length; k++) if (q[k][0] === cur.r && q[k][1] === cur.c) i = k;
+  if (i < 0) { closePop(); return; }
+  i += step; if (i < 0 || i >= q.length) { closePop(); return; }
+  cur = { r: q[i][0], c: q[i][1] }; dec = 0; pad = ''; draw(); popCell();
+}
+function pickBlock() {
+  cur = null;
+  matPop('<div class="ptop"><div class="ptitle">Block</div></div><div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(120px,1fr))">' +
+    L.blocks.map(function (b, i) { return '<button class="k sm' + (S.block === b.block ? ' sel' : '') + '" style="height:66px" onclick="setBlock(' + i + ')"><b style="font-size:20px">' + esc(b.block) + '</b><span class="sub" style="color:inherit">' + esc(b.cult) + '</span></button>'; }).join('') +
+    '</div><div class="pbar"><button class="btn ghost" onclick="closePop()">Close</button></div>');
+}
+function setBlock(i) { S.block = L.blocks[i].block; S.cult = L.blocks[i].cult; closePop(); }
+function pickQc() {
+  matPop('<div class="ptop"><div class="ptitle">QC Name</div></div><div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(160px,1fr))">' +
+    L.staff.map(function (s, i) { return '<button class="k sm' + (S.qc === s ? ' sel' : '') + '" style="font-size:20px" onclick="setQc(' + i + ')">' + esc(s) + '</button>'; }).join('') +
+    '</div><div class="pbar"><button class="btn ghost" onclick="closePop()">Close</button></div>');
+}
+function setQc(i) { S.qc = L.staff[i]; closePop(); }
+function pickDate() {
+  matPop('<div class="ptop"><div class="ptitle">Date</div></div><input type="date" id="dIn" value="' + S.date + '" style="font-size:24px;padding:10px;width:100%">' +
+    '<div class="pbar"><button class="btn ghost" onclick="closePop()">Cancel</button><button class="btn send" onclick="S.date=el(\'dIn\').value||S.date;closePop()">OK</button></div>');
+}
+function setTip(t) { S.tip = S.tip === t ? '' : t; draw(); }
+function msg(t, cls) { var m = el('msg'); m.textContent = t; m.className = 'msg ' + (cls || ''); }
+function send() {
+  var miss = [];
+  if (!S.block) miss.push('block'); if (!S.qc) miss.push('QC name'); if (!S.tip) miss.push('8 mm or 11 mm');
+  var any = S.fruit.some(function (f) { return ['mm', 'wt', 'pr', 'pl', 'pb', 'brix'].some(function (k) { return f[k] !== ''; }); });
+  if (!any) miss.push('at least one fruit');
+  if (miss.length) { msg('Pick the ' + miss.join(', ') + ' first.', 'err'); return; }
+  var o = { id: S.id, date: S.date, block: S.block, cult: S.cult, qc: S.qc, tip: S.tip,
+    fruit: S.fruit.map(function (f) { return { nr: f.nr, mm: f.mm, wt: f.wt, pr: f.pr, pl: f.pl, pb: f.pb, brix: f.brix, taste: f.taste, comments: f.cm }; }) };
+  var sum = summaryText(S), sent = JSON.parse(JSON.stringify(S));
+  queue('maturity', o, 'Maturity ' + S.block + ' ' + S.cult + ' – ' + dmy(S.date)).then(function () {
+    try { localStorage.setItem('qcLastSummary', sum); localStorage.setItem('qcLastSheet', JSON.stringify(sent)); } catch (e2) {}
+    var hist = lsGet('dfqcMatLocal', []); hist.push({ date: dmy(sent.date), block: sent.block, cult: sent.cult, qc: sent.qc, tip: sent.tip, n: sent.fruit.filter(function (f) { return f.mm !== '' || f.wt !== '' || f.brix !== '' || f.pr !== ''; }).length }); lsSet('dfqcMatLocal', hist.slice(-8));
+    var keepQc = S.qc, keepTip = S.tip; S = blank(); S.qc = keepQc; S.tip = keepTip; cur = null; draw();
+    msg('Saved ✓ ' + sent.block + (navigator.onLine ? ' – sending now' : ' – goes to the sheet when there is signal'), 'ok'); recentMat(); showSummary(sum, sent);
+  });
+}
+function recentMat() {
+  var list = lsGet('dfqcMatLocal', []).slice().reverse();
+  el('recent').innerHTML = list.length ? '<b>Last samples on this tablet</b>' + list.map(function (r) { return '<div>' + esc(r.date) + ' · <b>' + esc(r.block) + '</b> ' + esc(r.cult) + ' · ' + esc(r.qc) + ' · ' + esc(r.tip) + ' · ' + esc(r.n) + ' fruit</div>'; }).join('') : '';
+}
+function summaryText(X) {
+  var F = X.fruit.filter(function (f) { return ['mm', 'wt', 'pr', 'pl', 'pb', 'brix', 'taste'].some(function (k) { return f[k] !== ''; }); });
+  function vals(get) { return F.map(get).filter(function (v) { return v != null; }); }
+  function avg(a) { return a.reduce(function (s, v) { return s + v; }, 0) / a.length; }
+  function rng(a) { return a.length > 1 ? ' (' + fmt1(Math.min.apply(null, a)) + '–' + fmt1(Math.max.apply(null, a)) + ')' : ''; }
+  var M = vals(function (f) { return n(f.mm); }), W = vals(function (f) { return n(f.wt); }), Pp = vals(apOf), B = vals(function (f) { return n(f.brix); });
+  var ta = { E: 0, G: 0, B: 0 }; F.forEach(function (f) { if (ta[f.taste] != null) ta[f.taste]++; });
+  var L2 = ['*Maturity QC – ' + X.block + (X.cult ? ' ' + X.cult : '') + '*', dateTxt(X.date) + ' · ' + X.qc + ' · ' + X.tip, F.length + ' fruit', ''];
+  if (M.length) L2.push('Size: *' + Math.round(avg(M)) + ' mm*');
+  if (W.length) L2.push('Weight: *' + Math.round(avg(W)) + ' g*');
+  if (Pp.length) L2.push('Pressure: *' + fmt1(avg(Pp)) + ' kg*' + rng(Pp));
+  if (B.length) L2.push('Brix: *' + fmt1(avg(B)) + '*' + rng(B));
+  if (ta.E + ta.G + ta.B) L2.push('Taste: E ' + ta.E + ' · G ' + ta.G + ' · B ' + ta.B);
+  return L2.join('\n');
+}
+function sheetCanvas(X) {
+  var F = X.fruit.filter(function (f) { return ['mm', 'wt', 'pr', 'pl', 'pb', 'brix', 'taste'].some(function (k) { return f[k] !== ''; }); });
+  var all = [['Nr', 'nr', 60], ['MM', 'mm', 80], ['Weight', 'wt', 100], ['Right', 'pr', 90], ['Left', 'pl', 90], ['Bottom', 'pb', 100], ['Avg kg', 'ap', 100], ['Brix', 'brix', 90], ['Taste', 'taste', 130]];
+  var cols = all.filter(function (c) { if (c[1] === 'nr') return true; if (c[1] === 'ap') return F.some(function (f) { return apOf(f) != null; }); return F.some(function (f) { return f[c[1]] !== ''; }); });
+  function cellTxt(f, k) { if (k === 'nr') return String(f.nr); if (k === 'ap') { var a = apOf(f); return a == null ? '' : fmt1(a); } return show(f[k], k); }
+  function avgTxt(k) {
+    if (k === 'nr') return 'Avg';
+    if (k === 'taste') { var ta = { E: 0, G: 0, B: 0 }; F.forEach(function (f) { if (ta[f.taste] != null) ta[f.taste]++; }); return (ta.E + ta.G + ta.B) ? 'E' + ta.E + ' G' + ta.G + ' B' + ta.B : ''; }
+    var v = F.map(function (f) { return k === 'ap' ? apOf(f) : n(f[k]); }).filter(function (x) { return x != null; }); if (!v.length) return '';
+    var m = v.reduce(function (s, x) { return s + x; }, 0) / v.length; return (k === 'mm' || k === 'wt') ? String(Math.round(m)) : fmt1(m);
+  }
+  var cm = X.fruit.filter(function (f) { return f.cm; }).map(function (f) { return f.nr + ': ' + f.cm; });
+  var W = Math.max(40 + cols.reduce(function (s, c) { return s + c[2]; }, 0), 640), rowH = 44, top = 150, H = top + rowH * (F.length + 2) + 30 + (cm.length ? 34 * cm.length + 10 : 0);
+  var sc = 2, cv = document.createElement('canvas'); cv.width = W * sc; cv.height = H * sc;
+  var g = cv.getContext('2d'); g.scale(sc, sc); g.fillStyle = '#fff'; g.fillRect(0, 0, W, H); g.fillStyle = '#1f5f2e'; g.fillRect(0, 0, W, 8);
+  g.fillStyle = '#111'; g.textBaseline = 'middle'; g.font = 'bold 26px Arial'; g.fillText('Maturity QC – ' + X.block + (X.cult ? ' ' + X.cult : ''), 20, 42);
+  g.font = '20px Arial'; g.fillStyle = '#333'; g.fillText(dateTxt(X.date) + '  ·  ' + X.qc + '  ·  ' + X.tip + ' tip  ·  ' + F.length + ' fruit', 20, 78);
+  var sum = [], Pp = F.map(apOf).filter(function (x) { return x != null; }), B = F.map(function (f) { return n(f.brix); }).filter(function (x) { return x != null; });
+  if (Pp.length) sum.push('Pressure ' + fmt1(Pp.reduce(function (s, x) { return s + x; }, 0) / Pp.length) + ' kg (' + fmt1(Math.min.apply(null, Pp)) + '–' + fmt1(Math.max.apply(null, Pp)) + ')');
+  if (B.length) sum.push('Brix ' + fmt1(B.reduce(function (s, x) { return s + x; }, 0) / B.length) + ' (' + fmt1(Math.min.apply(null, B)) + '–' + fmt1(Math.max.apply(null, B)) + ')');
+  g.font = 'bold 20px Arial'; g.fillStyle = '#1f5f2e'; g.fillText(sum.join('    '), 20, 112);
+  var x0 = 20, y = top;
+  function row(vals, bg, bold) { var x = x0; cols.forEach(function (c, i) { g.fillStyle = bg; g.fillRect(x, y, c[2], rowH); g.strokeStyle = '#555'; g.lineWidth = 1; g.strokeRect(x + .5, y + .5, c[2], rowH); g.fillStyle = '#111'; g.font = (bold || i === 0 ? 'bold ' : '') + '20px Arial'; g.textAlign = 'center'; g.fillText(vals[i], x + c[2] / 2, y + rowH / 2); x += c[2]; }); g.textAlign = 'left'; y += rowH; }
+  row(cols.map(function (c) { return c[0]; }), '#f1f0ec', true);
+  F.forEach(function (f) { row(cols.map(function (c) { return cellTxt(f, c[1]); }), '#fff'); });
+  row(cols.map(function (c) { return avgTxt(c[1]); }), '#f1f0ec', true);
+  if (cm.length) { g.font = '18px Arial'; g.fillStyle = '#333'; y += 24; g.fillText('Comments:', 20, y); cm.forEach(function (t) { y += 30; g.fillText(t, 30, y); }); }
+  return cv;
+}
+function showSummary(t, X) {
+  if (!t) return;
+  var img = ''; if (X) { try { window._qcPic = sheetCanvas(X); img = window._qcPic.toDataURL('image/png'); } catch (e) { img = ''; } }
+  window._qcTitle = X ? 'Maturity QC ' + X.block + ' ' + dateTxt(X.date).replace(/\//g, '-') : 'Maturity QC';
+  matPop('<div class="ptop"><div class="ptitle">Summary – share with the group</div></div>' +
+    (img ? '<img src="' + img + '" style="width:100%;max-height:48vh;object-fit:contain;border:1px solid #ddd;border-radius:8px;background:#fff;-webkit-touch-callout:default;user-select:auto">' +
+      '<p class="note">If Share does not open WhatsApp: press and hold the picture › Share image › WhatsApp.</p>' : '') +
+    '<div class="pbar">' + (img ? '<button class="btn send" style="background:#25d366" onclick="sharePic()">Share picture ▶</button><a class="btn ghost" style="text-align:center;text-decoration:none" download="' + esc(window._qcTitle) + '.png" href="' + img + '">Save picture</a>' : '') +
+    '<a class="btn ghost" style="text-align:center;text-decoration:none" target="_blank" href="https://wa.me/?text=' + encodeURIComponent(t) + '">WhatsApp text</a><button class="btn ghost" onclick="closePop()">Close</button></div>');
+}
+function sharePic() {
+  var cv = window._qcPic; if (!cv) return;
+  cv.toBlob(function (blob) {
+    var file = null; try { file = new File([blob], (window._qcTitle || 'Maturity QC') + '.png', { type: 'image/png' }); } catch (e) {}
+    if (file && navigator.canShare && navigator.canShare({ files: [file] })) navigator.share({ files: [file], title: window._qcTitle }).catch(function () {});
+    else msg('Press and hold the picture › Share image › WhatsApp (or Save picture).', 'err');
+  }, 'image/png');
+}
+function lastSummary() { var t = '', X = null; try { t = localStorage.getItem('qcLastSummary') || ''; X = JSON.parse(localStorage.getItem('qcLastSheet') || 'null'); } catch (e) {} if (t) showSummary(t, X); else msg('No summary yet – SEND a sheet first.', 'err'); }
+function newSheet() {
+  var has = S.fruit.some(function (f) { return COLS.some(function (k) { return f[k] !== ''; }); });
+  if (has && !confirm('Clear this sheet? It has not been sent.')) return;
+  var keepQc = S.qc, keepTip = S.tip; S = blank(); S.qc = keepQc; S.tip = keepTip; cur = null; draw(); msg('');
+}
+
+/* =====================================================================
+   START
+   ===================================================================== */
+APP.lists = lsGet('dfqcLists', null);
+APP.user = lsGet('dfqcUser', null);
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
+window.addEventListener('online', function () { syncNow(false); badge(); });
+window.addEventListener('offline', badge);
+setInterval(function () { syncNow(false); }, 120000);
+redraw(); badge();
+go(APP.user ? 'home' : (APP.lists ? 'sign' : 'home'));
+refreshLists(false).then(function () { if (!APP.user && APP.view === 'home' && APP.lists) go('sign'); syncNow(false); });
+</script>
+</body>
+</html>
