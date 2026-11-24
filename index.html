@@ -114,7 +114,7 @@
     <button class="tile" onclick="openPdi()"><b>PhytClean delivery inspection</b><span>FCM and fruit fly – first delivery of each orchard every week (P-4-5)</span></button>
     <button class="tile" onclick="openMat()"><b>Maturity</b><span>Size, weight, pressure, Brix and taste – 10 fruit</span></button>
     <button class="tile off"><b>Orchard fruit damage</b><span>FF and FCM assessment in the orchard – coming next</span></button>
-    <button class="tile off"><b>Label check</b><span>Photo of each label at the start of a run – coming later</span></button>
+    <button class="tile" onclick="openLab()"><b>Label check</b><span>Photo of each label at the start of a run, checked against the master data</span></button>
   </div>
   <div id="homeNote"></div>
 </div></div>
@@ -204,6 +204,7 @@
 <div id="ov" onclick="if(event.target===this)closePop()"><div id="pop"></div></div>
 
 <script src="config.js"></script>
+<script src="label.js"></script>
 <script>
 /* =====================================================================
    CORE – storage, lists, sign-in, sending
@@ -245,7 +246,7 @@ function refreshLists(loud) {
   if (!navigator.onLine || !syncUrl()) { if (loud) toastOut('No signal – try again later.'); return Promise.resolve(); }
   return post({ action: 'lists' }).then(function (d) {
     if (!d || !d.ok) throw new Error(d && d.error || 'no answer');
-    APP.lists = { blocks: d.blocks || [], staff: d.staff || [], pdi: d.pdi || [], matRecent: d.matRecent || [], at: new Date().toISOString() };
+    APP.lists = { blocks: d.blocks || [], staff: d.staff || [], pdi: d.pdi || [], matRecent: d.matRecent || [], label: d.label || (APP.lists && APP.lists.label) || null, labelError: d.labelError || '', at: new Date().toISOString() };
     lsSet('dfqcLists', APP.lists);
     if (loud) toastOut('Blocks and names updated ✓');
     redraw();
@@ -278,7 +279,7 @@ function syncNow(loud) {
         return post({ action: 'sync', name: APP.user.name, pin: APP.user.pin, items: [{ id: it.id, type: it.type, data: it.data }] }).then(function (r) {
           if (r && r.error === 'PIN') { it.status = 'error'; it.error = 'Name or PIN not accepted – sign in again.'; return outPut(it); }
           var x = r && r.results && r.results[0];
-          if (x && x.ok) { it.status = 'sent'; it.sentAt = new Date().toISOString(); it.error = ''; it.reply = x.message || ''; if (it.data && it.data.photos) it.data.photos = it.data.photos.map(function () { return 'sent'; }); }
+          if (x && x.ok) { it.status = 'sent'; it.sentAt = new Date().toISOString(); it.error = ''; it.reply = x.message || ''; if (it.data && it.data.photos) it.data.photos = it.data.photos.map(function () { return 'sent'; }); if (it.data && it.data.photo) it.data.photo = 'sent'; }
           else { it.status = 'error'; it.error = (x && x.error) || (r && r.error) || 'No answer'; }
           return outPut(it);
         }).catch(function (e) { it.status = 'error'; it.error = 'Could not reach the sheet – ' + e.message; return outPut(it); });
@@ -313,7 +314,7 @@ function drawOut() {
 /* --- views --- */
 function go(v) {
   APP.view = v;
-  ['home', 'sign', 'pdi', 'mat', 'out', 'set'].forEach(function (x) { el('v-' + x).className = 'view' + (x === v ? ' on' : ''); });
+  ['home', 'sign', 'pdi', 'mat', 'lab', 'out', 'set'].forEach(function (x) { el('v-' + x).className = 'view' + (x === v ? ' on' : ''); });
   if (v === 'sign') drawSign();
   if (v === 'out') { el('outTop').innerHTML = ''; drawOut(); }
   if (v === 'set') { el('setUrl').value = lsGet('dfqcUrl', ''); el('setInfo').textContent = 'Now using: ' + (syncUrl() || '(none)'); }
@@ -326,6 +327,7 @@ function redraw() {
   if (!APP.lists) n.innerHTML = '<div class="banner amber">Open the app once with signal so it can load the blocks and QC names.</div>';
   else n.innerHTML = '<p class="note">Blocks and names loaded ' + esc(APP.lists.at.slice(0, 16).replace('T', ' ')) + '. Everything you save stays on this tablet until it has been sent.</p>';
   if (APP.view === 'pdi') pdiDraw();
+  if (APP.view === 'lab' && LB) { if (!LB.lines.length) LB.lines = labExpect(); labDraw(); }
 }
 
 /* --- sign-in: name + PIN (PIN checked by the sheet when there is signal) --- */
