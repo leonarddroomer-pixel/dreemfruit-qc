@@ -188,7 +188,7 @@
 <div class="view" id="v-out"><div class="paper">
   <h1>Sending</h1>
   <div id="outTop"></div>
-  <div class="row"><button class="btn send" onclick="syncNow(true)">Send now</button><button class="btn ghost" onclick="refreshLists(true)">Update blocks and names</button><button class="btn ghost" onclick="go('set')">Settings</button></div>
+  <div class="row"><button class="btn send" onclick="syncNow(true)">Send now</button><button class="btn ghost" onclick="refreshLists(true)">Update blocks and names</button><button class="btn ghost" onclick="go('set')">Settings</button><button class="btn ghost" onclick="appUpdate()">Update the app</button></div>
   <div class="list" id="outList"></div>
 </div></div>
 
@@ -321,12 +321,26 @@ function go(v) {
   if (v === 'set') { el('setUrl').value = lsGet('dfqcUrl', ''); el('setInfo').textContent = 'Now using: ' + (syncUrl() || '(none)'); }
   window.scrollTo(0, 0);
 }
+/* --- app version and update: the version is the name of the offline cache (sw.js) --- */
+function appVersion() {
+  if (!window.caches) return;
+  caches.keys().then(function (k) { var e = el('appVer'); if (e) e.textContent = 'App version ' + (k.filter(function (x) { return /^dfqc-/.test(x); }).sort().pop() || '?').replace('dfqc-v', '') + '.'; }).catch(function () {});
+}
+function appUpdate() {
+  if (!navigator.onLine) return toastOut('No signal – connect first, then update.');
+  if (!('serviceWorker' in navigator)) return location.reload();
+  toastOut('Looking for a newer version…');
+  navigator.serviceWorker.getRegistration().then(function (r) { return r ? r.update() : null; }).catch(function () {}).then(function () {
+    setTimeout(function () { location.reload(); }, 6000);            // give the new files time to download, then restart the app
+  });
+}
 function saveUrl() { lsSet('dfqcUrl', el('setUrl').value.trim()); go('out'); refreshLists(true); }
 function redraw() {
   el('who').textContent = APP.user ? '👤 ' + APP.user.name : 'Sign in';
   var n = el('homeNote');
   if (!APP.lists) n.innerHTML = '<div class="banner amber">Open the app once with signal so it can load the blocks and QC names.</div>';
-  else n.innerHTML = '<p class="note">Blocks and names loaded ' + esc(APP.lists.at.slice(0, 16).replace('T', ' ')) + '. Everything you save stays on this tablet until it has been sent.</p>';
+  else n.innerHTML = '<p class="note">Blocks and names loaded ' + esc(APP.lists.at.slice(0, 16).replace('T', ' ')) + '. Everything you save stays on this tablet until it has been sent. <span id="appVer"></span></p>';
+  appVersion();
   if (APP.view === 'pdi') pdiDraw();
   if (APP.view === 'tal') tlDraw();
   if (APP.view === 'lab' && LB) { if (!LB.lines.length) LB.lines = labExpect(); labDraw(); }
