@@ -83,12 +83,14 @@ function labExpect() {
     add('count', 'Count', sz.count + sz.letter, sz.layer + ' layer');
     if (sp.weight === 'Always' || (sp.weight === 'Single layer' && /single/i.test(sz.layer))) add('weight', 'Nett weight', 'Nett weight in kg', 'must be printed on ' + (sp.weight === 'Always' ? 'this label' : 'single-layer cartons'));
   } else {
+    if (sp.size === 'Table') add('sizetable', 'Size table', 'Every count on the label has its right diameter', 'checked against the Fruit Sizes list');
     if (sp.size === 'Optional') add('nosize', 'Size (optional)', 'No size, or a count and diameter that belong together');
     if (sp.weight === 'Always') add('weight', 'Nett weight', 'Nett weight in kg');
   }
   if (sp.find.length) add('cust', 'Customer line', sp.line || sp.find.join(', '));
   if (sp.not.length) add('notcust', 'No other customer', 'Not on this label: ' + sp.not.map(function (x) { return x.split('|')[0]; }).join(', '));
   add('origin', 'Origin', F.ORIGIN);
+  (sp.eye || []).forEach(function (t, i) { add('eye' + i, 'By eye ' + (i + 1), t, 'always checked by eye'); });
   add('print', 'Print and carton', 'Readable, nothing cut off, and on the right carton', 'always checked by eye');
   // keep answers already given when the expected text did not change
   var old = {}; (LB.lines || []).forEach(function (l) { old[l.key + '|' + l.exp] = l; });
@@ -138,6 +140,21 @@ function labRead() {
         else if (d && c && R.sizes.some(function (s) { return s.count === c.count && s.min === d.min && s.max === d.max && (!c.letter || c.letter === s.letter); })) ok(l, c.count + c.letter + ' · ' + d.min + '-' + d.max + 'mm');
         else if (d && c) bad(l, c.count + c.letter + ' with ' + d.min + '-' + d.max + 'mm');
         break;
+      case 'sizetable':
+        var ds = [], re = /(\d{2})\s*[-–—]\s*(\d{2})\s*MM/g, mm;
+        while ((mm = re.exec(U))) ds.push([+mm[1], +mm[2]]);
+        if (!ds.length) break;
+        var wrongD = ds.filter(function (x) { return !R.sizes.some(function (s) { return s.min === x[0] && s.max === x[1]; }); })[0];
+        if (wrongD) { bad(l, wrongD[0] + '-' + wrongD[1] + 'mm is not a size on the list'); break; }
+        // the counts: two-digit numbers standing on their own, in the order they are printed
+        var cs = (U.replace(re, ' ').match(/(?:^|[^0-9A-Z])\d{2}(?![0-9A-Z-])/g) || []).map(function (x) { return x.replace(/\D/g, ''); })
+          .filter(function (c) { return R.sizes.some(function (s) { return s.count === c; }); });
+        var fits = function (c, x) { return R.sizes.some(function (s) { return s.count === c && s.min === x[0] && s.max === x[1]; }); };
+        if (cs.length === ds.length) {
+          for (i = 0; i < ds.length; i++) if (!fits(cs[i], ds[i])) { bad(l, cs[i] + ' with ' + ds[i][0] + '-' + ds[i][1] + 'mm'); break; }
+          if (!l.st) ok(l, ds.length + ' sizes read');
+        } else if (ds.every(function (x) { return cs.some(function (c) { return fits(c, x); }); })) ok(l, ds.length + ' sizes read');
+        break;
       case 'weight': m = U.match(/(\d+(?:[.,]\d+)?)\s*KG/); if (m) ok(l, m[1] + ' kg'); break;
       case 'cust': if (sp.find.every(function (f) { return f.split('|').some(has); })) ok(l); break;
       case 'notcust': for (i = 0; i < sp.not.length; i++) { var hit = sp.not[i].split('|').filter(has)[0]; if (hit) { bad(l, hit); break; } } if (!l.st) ok(l); break;
@@ -152,7 +169,7 @@ function labDraw() {
   el('lDate').textContent = dmy(LB.date); el('lQc').textContent = APP.user ? APP.user.name : '';
   setHead('lBlock', LB.block, 'tap to pick'); el('lCult').textContent = LB.cult ? LB.cult + ' · ' + LB.crop + (LB.flesh ? ' · ' + LB.flesh : '') : '';
   setHead('lType', LB.type, 'tap to pick'); setHead('lCls', LB.cls ? 'Class ' + LB.cls : '', 'tap to pick');
-  setHead('lCount', sz ? sz.count + sz.letter + ' · ' + sz.min + '–' + sz.max + ' mm · ' + sz.layer.toLowerCase() : (LB.count === '-' ? 'No size on label' : ''), 'tap to pick');
+  setHead('lCount', sz ? sz.count + sz.letter + ' · ' + sz.min + '–' + sz.max + ' mm · ' + sz.layer.toLowerCase() : (LB.count === '-' ? (sp && sp.size === 'Table' ? 'All sizes are on the label' : 'No size on label') : ''), 'tap to pick');
   el('lCode').textContent = labCode(LB.date);
   el('lNotes').value = LB.notes || '';
   var top = '';
@@ -205,7 +222,7 @@ function labPickType() {
 function labSetType(i) {
   var s = labRules().specs[i]; LB.type = s.type;
   if (s.classes.indexOf(String(LB.cls)) < 0) LB.cls = s.classes.length === 1 ? s.classes[0] : '';
-  if (s.size === 'No') LB.count = '-'; else if (LB.count === '-' && s.size !== 'Optional') LB.count = '';
+  if (s.size === 'No' || s.size === 'Table') LB.count = '-'; else if (LB.count === '-' && s.size !== 'Optional') LB.count = '';
   closePop(); labRebuild(); labDraw();
 }
 function labPickCls() {
@@ -217,7 +234,7 @@ function labPickCls() {
 function labSetCls(c) { LB.cls = c; closePop(); labRebuild(); labDraw(); }
 function labPickCount() {
   var s = labSpec(); if (!s) return labPickType();
-  if (s.size === 'No') return;
+  if (s.size === 'No' || s.size === 'Table') return;
   var Z = labRules().sizes, grp = function (layer) {
     var rows = Z.filter(function (z) { return z.layer === layer; });
     return rows.length ? '<p class="note" style="margin:8px 0 4px"><b>' + esc(layer) + ' layer</b></p><div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(120px,1fr))">' +
@@ -266,7 +283,7 @@ function labFinish() {
   if (!LB.type) return m.textContent = 'Pick who the label is for.';
   if (!LB.cls) return m.textContent = 'Pick the class.';
   var sp = labSpec();
-  if (!LB.count && sp.size !== 'No') return m.textContent = 'Pick the count.';
+  if (!LB.count && sp.size !== 'No' && sp.size !== 'Table') return m.textContent = 'Pick the count.';
   if (!LB.photo) return m.textContent = 'Take a photo of the label.';
   var r = labResult();
   if (r.open) return m.textContent = r.open + ' line' + (r.open > 1 ? 's' : '') + ' still to check.';
