@@ -205,6 +205,7 @@
 
 <script src="config.js"></script>
 <script src="label.js"></script>
+<script src="tally.js"></script>
 <script>
 /* =====================================================================
    CORE – storage, lists, sign-in, sending
@@ -246,7 +247,7 @@ function refreshLists(loud) {
   if (!navigator.onLine || !syncUrl()) { if (loud) toastOut('No signal – try again later.'); return Promise.resolve(); }
   return post({ action: 'lists' }).then(function (d) {
     if (!d || !d.ok) throw new Error(d && d.error || 'no answer');
-    APP.lists = { blocks: d.blocks || [], staff: d.staff || [], pdi: d.pdi || [], matRecent: d.matRecent || [], label: d.label || (APP.lists && APP.lists.label) || null, labelError: d.labelError || '', at: new Date().toISOString() };
+    APP.lists = { blocks: d.blocks || [], staff: d.staff || [], pdi: d.pdi || [], matRecent: d.matRecent || [], label: d.label || (APP.lists && APP.lists.label) || null, labelError: d.labelError || '', tally: d.tally || null, at: new Date().toISOString() };
     lsSet('dfqcLists', APP.lists);
     if (loud) toastOut('Blocks and names updated ✓');
     redraw();
@@ -314,7 +315,7 @@ function drawOut() {
 /* --- views --- */
 function go(v) {
   APP.view = v;
-  ['home', 'sign', 'pdi', 'mat', 'lab', 'out', 'set'].forEach(function (x) { el('v-' + x).className = 'view' + (x === v ? ' on' : ''); });
+  ['home', 'sign', 'pdi', 'mat', 'lab', 'tal', 'out', 'set'].forEach(function (x) { el('v-' + x).className = 'view' + (x === v ? ' on' : ''); });
   if (v === 'sign') drawSign();
   if (v === 'out') { el('outTop').innerHTML = ''; drawOut(); }
   if (v === 'set') { el('setUrl').value = lsGet('dfqcUrl', ''); el('setInfo').textContent = 'Now using: ' + (syncUrl() || '(none)'); }
@@ -327,6 +328,7 @@ function redraw() {
   if (!APP.lists) n.innerHTML = '<div class="banner amber">Open the app once with signal so it can load the blocks and QC names.</div>';
   else n.innerHTML = '<p class="note">Blocks and names loaded ' + esc(APP.lists.at.slice(0, 16).replace('T', ' ')) + '. Everything you save stays on this tablet until it has been sent.</p>';
   if (APP.view === 'pdi') pdiDraw();
+  if (APP.view === 'tal') tlDraw();
   if (APP.view === 'lab' && LB) { if (!LB.lines.length) LB.lines = labExpect(); labDraw(); }
 }
 
