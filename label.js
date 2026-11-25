@@ -10,7 +10,7 @@ var LB = null;
   var d = document.createElement('div'); d.className = 'view'; d.id = 'v-lab';
   d.innerHTML = '<div class="paper"><h1>Label Check</h1>' +
     '<div class="head2">' +
-    '<div class="hf"><b>Date:</b><div class="v ro" id="lDate"></div></div>' +
+    '<div class="hf"><b>Date:</b><div class="v" id="lDate" onclick="askDate(LB.date,function(v){LB.date=v;labRebuild();labDraw();})"></div></div>' +
     '<div class="hf"><b>QC:</b><div class="v ro" id="lQc"></div></div>' +
     '<div class="hf"><b>Block:</b><div class="v" id="lBlock" onclick="labPickBlock()"></div></div>' +
     '<div class="hf"><b>Cultivar:</b><div class="v ro" id="lCult"></div></div>' +
@@ -37,11 +37,11 @@ var LB = null;
 })();
 
 function labRules() { return APP.lists && APP.lists.label; }
-function labBlank() { return { id: uid('LAB'), date: iso(), block: '', cult: '', crop: '', flesh: '', type: '', cls: '', count: '', photo: '', text: '', read: '', lines: [], notes: '', fixOf: '' }; }
+function labBlank() { return { id: uid('LAB'), made: iso(), date: iso(), block: '', cult: '', crop: '', flesh: '', type: '', cls: '', count: '', photo: '', text: '', read: '', lines: [], notes: '', fixOf: '' }; }
 function labSave() { var c = {}; for (var k in LB) c[k] = LB[k]; c.photo = ''; lsSet('dfqcLabDraft', c); }
 function openLab() {
   if (!needUser()) return;
-  if (!LB) { LB = lsGet('dfqcLabDraft', null) || labBlank(); if (LB.date !== iso()) LB = labBlank(); }
+  if (!LB) { LB = lsGet('dfqcLabDraft', null) || labBlank(); if (LB.made !== iso()) LB = labBlank(); }
   go('lab'); labDraw();
 }
 function labNew(ask) {
@@ -175,6 +175,7 @@ function labDraw() {
   var top = '';
   if (!R) top = '<div class="banner amber">The label rules are not loaded yet. Connect to signal and tap the sync button › “Update blocks and names”.' + (APP.lists && APP.lists.labelError ? '<br><small>' + esc(APP.lists.labelError) + '</small>' : '') + '</div>';
   else if (LB.fixOf) top = '<div class="banner grey">Re-check after a rejected label.</div>';
+  top += notToday(LB.date);
   el('lTop').innerHTML = top;
   el('lThumb').innerHTML = LB.photo ? '<img src="' + LB.photo + '" onclick="labShowPhoto()">' : '';
   el('lRead').textContent = LB.read || '';

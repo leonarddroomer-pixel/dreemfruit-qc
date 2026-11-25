@@ -6,7 +6,7 @@
    Every entry is one record (type 'tally'). The sheet keeps the entries in a log and
    keeps the day total per block up to date (Harvest and Tipped tabs of dreemFRUIT Harvest).
    ===================================================================== */
-var TL = { kind: 'pick', block: '', cult: '' };
+var TL = { kind: 'pick', date: '', block: '', cult: '' };
 var TLK = {
   pick: { title: 'Picking – lugs out of the orchard', verb: 'picked', tile: 'Picking', sub: 'Lugs coming out of the block – add them as they come' },
   tip: { title: 'Tipping – lugs into the packshed', verb: 'tipped', tile: 'Tipping', sub: 'Lugs tipped on the line – add them as you tip' },
@@ -16,14 +16,14 @@ var TLK = {
   var d = document.createElement('div'); d.className = 'view'; d.id = 'v-tal';
   d.innerHTML = '<div class="paper"><h1 id="tTitle"></h1>' +
     '<div class="head2">' +
-    '<div class="hf"><b>Date:</b><div class="v ro" id="tDate"></div></div>' +
+    '<div class="hf"><b>Date:</b><div class="v" id="tDate" onclick="askDate(TL.date,function(v){TL.date=v;el(\'tMsg\').textContent=\'\';tlDraw();})"></div></div>' +
     '<div class="hf"><b>Supervisor:</b><div class="v ro" id="tBy"></div></div>' +
     '<div class="hf" style="grid-column:1/-1"><b>Block:</b><div class="v" id="tBlock" onclick="tlPickBlock()"></div></div>' +
-    '</div>' +
+    '</div><div id="tWarn"></div>' +
     '<div id="tBig"></div>' +
     '<div class="row"><button class="btn send" style="flex:2" onclick="tlKeys(1)">+ Add lugs</button><button class="btn ghost" style="flex:1" onclick="tlKeys(-1)">Take off (mistake)</button></div>' +
     '<div class="msg" id="tMsg" style="margin-top:10px"></div>' +
-    '<h2>Today</h2><div id="tTotals"></div><div class="recent" id="tList"></div></div>';
+    '<h2 id="tDay">Today</h2><div id="tTotals"></div><div class="recent" id="tList"></div></div>';
   var ov = document.getElementById('ov'); ov.parentNode.insertBefore(d, ov);
   var st = document.createElement('style');
   st.textContent = '#tBig{border:2px solid #1f5f2e;border-radius:10px;padding:14px;margin:10px 0;text-align:center;font-size:18px}#tBig b{display:block;font-size:64px;line-height:1.1;color:#1f5f2e}' +
@@ -42,12 +42,12 @@ function tlBlocks() { var L = APP.lists || {}; return (L.label && L.label.blocks
 function openTally(kind) {
   if (!needUser()) return;
   var last = lsGet('dfqcTallyLast', {});
-  TL = { kind: kind, block: (last[kind] && last[kind].date === iso()) ? last[kind].block : '', cult: (last[kind] && last[kind].date === iso()) ? last[kind].cult : '' };
+  TL = { kind: kind, date: iso(), block: (last[kind] && last[kind].date === iso()) ? last[kind].block : '', cult: (last[kind] && last[kind].date === iso()) ? last[kind].cult : '' };
   go('tal'); el('tMsg').textContent = ''; tlDraw();
 }
-/** Today's entries of this kind: what this device saved plus what the sheet already has (other tablets and phones). */
+/** The entries of this kind on the date on the screen: what this device saved plus what the sheet already has (other tablets and phones). */
 function tlToday(kind) {
-  var seen = {}, out = [], today = iso();
+  var seen = {}, out = [], today = TL.date || iso();
   lsGet('dfqcTally', []).forEach(function (e) { if (e.kind === kind && e.date === today && !seen[e.id]) { seen[e.id] = 1; out.push(e); } });
   var srv = APP.lists && APP.lists.tally && APP.lists.tally.today === today ? (APP.lists.tally[kind] || []) : [];
   srv.forEach(function (e) { if (!seen[e.id]) { seen[e.id] = 1; out.push({ id: e.id, kind: kind, date: today, time: e.time, block: e.block, cult: e.cult, lugs: Number(e.lugs), by: e.by }); } });
@@ -56,18 +56,19 @@ function tlToday(kind) {
 }
 function tlDraw() {
   var K = TLK[TL.kind], rows = tlToday(TL.kind);
-  el('tTitle').textContent = K.title; el('tDate').textContent = dmy(iso()); el('tBy').textContent = APP.user ? APP.user.name : '';
+  el('tTitle').textContent = K.title; el('tDate').textContent = dmy(TL.date); el('tWarn').innerHTML = notToday(TL.date);
+  var isT = TL.date === iso(), dayTxt = isT ? 'today' : 'on ' + dmy(TL.date); el('tDay').textContent = isT ? 'Today' : dmy(TL.date); el('tBy').textContent = APP.user ? APP.user.name : '';
   setHead('tBlock', TL.block ? TL.block + (TL.cult ? ' · ' + TL.cult : '') : '', 'tap to pick the block');
   var mine = rows.filter(function (e) { return e.block === TL.block; }).reduce(function (s, e) { return s + e.lugs; }, 0);
-  el('tBig').innerHTML = TL.block ? 'Lugs ' + K.verb + ' today – ' + esc(TL.block) + '<b>' + mine + '</b>' : '<span style="color:#b00">Pick the block first</span>';
+  el('tBig').innerHTML = TL.block ? 'Lugs ' + K.verb + ' ' + dayTxt + ' – ' + esc(TL.block) + '<b>' + mine + '</b>' : '<span style="color:#b00">Pick the block first</span>';
   var per = {}, order = [];
   rows.forEach(function (e) { if (per[e.block] == null) { per[e.block] = { lugs: 0, n: 0, cult: e.cult }; order.push(e.block); } per[e.block].lugs += e.lugs; per[e.block].n++; });
   order.sort();
   var all = order.reduce(function (s, b) { return s + per[b].lugs; }, 0);
   el('tTotals').innerHTML = order.length ? '<table><colgroup><col style="width:22%"><col><col style="width:20%"><col style="width:20%"></colgroup><thead><tr><th>Block</th><th>Cultivar</th><th>Entries</th><th>Lugs</th></tr></thead><tbody>' +
     order.map(function (b) { return '<tr><td><b>' + esc(b) + '</b></td><td class="l">' + esc(per[b].cult || '') + '</td><td>' + per[b].n + '</td><td><b>' + per[b].lugs + '</b></td></tr>'; }).join('') +
-    (order.length > 1 ? '<tr class="avg"><td>All</td><td></td><td>' + rows.length + '</td><td>' + all + '</td></tr>' : '') + '</tbody></table>' : '<p class="note">Nothing entered yet today.</p>';
-  el('tList').innerHTML = rows.length ? '<b>Entries today</b>' + rows.slice(0, 40).map(function (e) { return '<div>' + esc(e.time) + ' · <b>' + esc(e.block) + '</b> · ' + (e.lugs > 0 ? '+' : '') + e.lugs + ' lugs · ' + esc(e.by || '') + '</div>'; }).join('') : '';
+    (order.length > 1 ? '<tr class="avg"><td>All</td><td></td><td>' + rows.length + '</td><td>' + all + '</td></tr>' : '') + '</tbody></table>' : '<p class="note">Nothing entered yet ' + dayTxt + '.</p>';
+  el('tList').innerHTML = rows.length ? '<b>Entries ' + dayTxt + '</b>' + rows.slice(0, 40).map(function (e) { return '<div>' + esc(e.time) + ' · <b>' + esc(e.block) + '</b> · ' + (e.lugs > 0 ? '+' : '') + e.lugs + ' lugs · ' + esc(e.by || '') + '</div>'; }).join('') : '';
 }
 function tlPickBlock() {
   var B = tlBlocks();
@@ -101,11 +102,11 @@ function tlKey(x) {
 }
 function tlAdd(lugs) {
   var now = new Date(), K = TLK[TL.kind];
-  var e = { id: uid('TAL'), kind: TL.kind, date: iso(), time: ('0' + now.getHours()).slice(-2) + ':' + ('0' + now.getMinutes()).slice(-2), block: TL.block, cult: TL.cult, lugs: lugs, by: APP.user.name, notes: '', savedAt: now.toISOString() };
+  var e = { id: uid('TAL'), kind: TL.kind, date: TL.date || iso(), time: ('0' + now.getHours()).slice(-2) + ':' + ('0' + now.getMinutes()).slice(-2), block: TL.block, cult: TL.cult, lugs: lugs, by: APP.user.name, notes: '', savedAt: now.toISOString() };
   var keep = Date.now() - 4 * 864e5, list = lsGet('dfqcTally', []).filter(function (x) { return Date.parse(x.savedAt) > keep; });
   list.push(e); lsSet('dfqcTally', list);
   tlDraw();
   var total = tlToday(TL.kind).filter(function (x) { return x.block === e.block; }).reduce(function (s, x) { return s + x.lugs; }, 0);
-  el('tMsg').className = 'msg ok'; el('tMsg').textContent = 'Saved ✓ ' + (lugs > 0 ? '+' : '') + lugs + ' lugs · ' + e.block + ' today ' + total + (navigator.onLine ? '' : ' · goes to the sheet when there is signal');
+  el('tMsg').className = 'msg ok'; el('tMsg').textContent = 'Saved ✓ ' + (lugs > 0 ? '+' : '') + lugs + ' lugs · ' + e.block + ' ' + (e.date === iso() ? 'today' : dmy(e.date)) + ' ' + total + (navigator.onLine ? '' : ' · goes to the sheet when there is signal');
   queue('tally', e, K.tile + ' ' + e.block + ' ' + (lugs > 0 ? '+' : '') + lugs + ' lugs – ' + e.time);
 }

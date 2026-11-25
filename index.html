@@ -129,7 +129,7 @@
 <div class="view" id="v-pdi"><div class="paper" id="pdiPaper">
   <h1>PhytClean Delivery Inspection – FCM and Fruit Fly</h1>
   <div class="head2">
-    <div class="hf"><b>Date:</b><div class="v ro" id="pDate"></div></div>
+    <div class="hf"><b>Date:</b><div class="v" id="pDate" onclick="askDate(P.date,function(v){P.date=v;pdiSave();pdiDraw();})"></div></div>
     <div class="hf"><b>QC:</b><div class="v ro" id="pQc"></div></div>
     <div class="hf"><b>Orchard / block:</b><div class="v" id="pBlock" onclick="pdiPickBlock()"></div></div>
     <div class="hf"><b>Cultivar:</b><div class="v ro" id="pCult"></div></div>
@@ -381,6 +381,16 @@ function signPin(i) {
 function setUser(u) { APP.user = u; lsSet('dfqcUser', u); closePop(); redraw(); go('home'); syncNow(false); }
 function needUser() { if (APP.user) return true; go('sign'); return false; }
 
+/* --- shared date picker: every screen fills in today by itself; tap the date to change it (not into the future) --- */
+var DATECB = null;
+function askDate(cur, cb) {
+  DATECB = cb;
+  popShow('<div class="ptop"><div class="ptitle">Date</div></div><input type="date" id="dAsk" value="' + esc(cur || iso()) + '" max="' + iso() + '" style="font-size:24px;padding:10px;width:100%">' +
+    '<div class="pbar"><button class="btn ghost" onclick="closePop()">Cancel</button><button class="btn ghost" onclick="askDateOk(iso())">Today</button><button class="btn send" onclick="askDateOk(el(\'dAsk\').value)">OK</button></div>');
+}
+function askDateOk(v) { if (!v || v > iso()) v = iso(); var cb = DATECB; DATECB = null; closePop(); if (cb) cb(v); }
+function notToday(d) { return d && d !== iso() ? '<div class="banner amber">Date is <b>' + esc(dmy(d)) + '</b> – not today. Tap the date to change it.</div>' : ''; }
+
 /* --- shared pop-up --- */
 function popShow(html) { el('pop').innerHTML = html; el('ov').className = 'show'; }
 function closePop() { el('ov').className = ''; document.body.style.paddingBottom = ''; if (APP.view === 'mat') { cur = null; draw(); } }
@@ -404,7 +414,7 @@ function pdiFitLugs() {
 }
 /* this week's status of a block, from the sheet plus what is still on the tablet */
 function pdiState(block) {
-  var wk = monday(iso()), L = APP.lists || { pdi: [] }, local = lsGet('dfqcPdiLocal', []);
+  var wk = monday(P && P.date ? P.date : iso()), L = APP.lists || { pdi: [] }, local = lsGet('dfqcPdiLocal', []);
   var all = (L.pdi || []).concat(local);
   var mine = all.filter(function (r) { return r.block === block; });
   return {
