@@ -206,6 +206,7 @@
 <script src="config.js"></script>
 <script src="label.js"></script>
 <script src="tally.js"></script>
+<script src="buy.js"></script>
 <script>
 /* =====================================================================
    CORE – storage, lists, sign-in, sending
@@ -247,7 +248,7 @@ function refreshLists(loud) {
   if (!navigator.onLine || !syncUrl()) { if (loud) toastOut('No signal – try again later.'); return Promise.resolve(); }
   return post({ action: 'lists' }).then(function (d) {
     if (!d || !d.ok) throw new Error(d && d.error || 'no answer');
-    APP.lists = { blocks: d.blocks || [], staff: d.staff || [], pdi: d.pdi || [], matRecent: d.matRecent || [], label: d.label || (APP.lists && APP.lists.label) || null, labelError: d.labelError || '', tally: d.tally || null, at: new Date().toISOString() };
+    APP.lists = { blocks: d.blocks || [], staff: d.staff || [], pdi: d.pdi || [], matRecent: d.matRecent || [], label: d.label || (APP.lists && APP.lists.label) || null, labelError: d.labelError || '', tally: d.tally || null, buy: d.buy || (APP.lists && APP.lists.buy) || [], at: new Date().toISOString() };
     lsSet('dfqcLists', APP.lists);
     if (loud) toastOut('Blocks and names updated ✓');
     redraw();
@@ -315,7 +316,7 @@ function drawOut() {
 /* --- views --- */
 function go(v) {
   APP.view = v;
-  ['home', 'sign', 'pdi', 'mat', 'lab', 'tal', 'out', 'set'].forEach(function (x) { el('v-' + x).className = 'view' + (x === v ? ' on' : ''); });
+  ['home', 'sign', 'pdi', 'mat', 'lab', 'tal', 'buy', 'out', 'set'].forEach(function (x) { var w = el('v-' + x); if (w) w.className = 'view' + (x === v ? ' on' : ''); });
   if (v === 'sign') drawSign();
   if (v === 'out') { el('outTop').innerHTML = ''; drawOut(); }
   if (v === 'set') { el('setUrl').value = lsGet('dfqcUrl', ''); el('setInfo').textContent = 'Now using: ' + (syncUrl() || '(none)'); }
@@ -343,6 +344,7 @@ function redraw() {
   appVersion();
   if (APP.view === 'pdi') pdiDraw();
   if (APP.view === 'tal') tlDraw();
+  if (APP.view === 'buy') byDraw();
   if (APP.view === 'lab' && LB) { if (!LB.lines.length) LB.lines = labExpect(); labDraw(); }
 }
 

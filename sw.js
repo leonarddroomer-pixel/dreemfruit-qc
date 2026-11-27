@@ -1,7 +1,7 @@
 // dreemFRUIT QC – offline cache. Change VERSION with every update so tablets pick up the new files.
 // Files are fetched past the browser's own cache, so an update is really new.
-var VERSION = 'dfqc-v7';
-var FILES = ['./', './index.html', './config.js', './label.js', './tally.js', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
+var VERSION = 'dfqc-v8';
+var FILES = ['./', './index.html', './config.js', './label.js', './tally.js', './buy.js', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(VERSION).then(function (c) { return c.addAll(FILES.map(function (f) { return new Request(f, { cache: 'reload' }); })); }).then(function () { return self.skipWaiting(); }));
